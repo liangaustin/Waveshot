@@ -1,0 +1,333 @@
+/* ===== 全局 ===== */
+:root {
+  --bg: #0d1016;
+  --panel: #171c25;
+  --panel2: #1f2632;
+  --accent: #ff5a2a;
+  --accent2: #2f8fff;
+  --text: #e8eef4;
+  --dim: #8a97a5;
+  --line: rgba(255, 255, 255, 0.12);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  font-family: "Segoe UI", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+body.game-body { overflow: hidden; }
+
+a { text-decoration: none; }
+
+/* ===== 菜单页 ===== */
+.menu-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+  padding: 24px;
+  background:
+    radial-gradient(circle at 50% 25%, rgba(47, 143, 255, 0.14), transparent 55%),
+    radial-gradient(circle at 50% 100%, rgba(255, 90, 42, 0.12), transparent 55%),
+    var(--bg);
+}
+
+.title {
+  font-size: 54px;
+  font-weight: 900;
+  letter-spacing: 6px;
+  text-transform: uppercase;
+  background: linear-gradient(180deg, #ffffff, #9fb6cc);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: 0 0 40px rgba(47, 143, 255, 0.35);
+  user-select: none;
+}
+
+.subtitle { color: var(--dim); letter-spacing: 8px; font-size: 14px; margin-top: -14px; user-select: none; }
+
+.menu-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 260px;
+  margin-top: 14px;
+}
+
+.btn {
+  display: block;
+  width: 100%;
+  padding: 14px 20px;
+  font-size: 18px;
+  letter-spacing: 3px;
+  text-align: center;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  color: var(--text);
+  cursor: pointer;
+  transition: transform .15s, box-shadow .15s, border-color .15s, background .15s;
+}
+
+.btn:hover {
+  border-color: var(--accent);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(255, 90, 42, 0.25);
+}
+
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.primary:hover { box-shadow: 0 8px 24px rgba(255, 90, 42, 0.45); }
+.btn.secondary { background: var(--accent2); border-color: var(--accent2); color: #fff; }
+.btn.secondary:hover { box-shadow: 0 8px 24px rgba(47, 143, 255, 0.45); }
+
+.help {
+  color: var(--dim);
+  font-size: 13px;
+  max-width: 480px;
+  text-align: center;
+  line-height: 2;
+  letter-spacing: 1px;
+}
+
+.help kbd {
+  display: inline-block;
+  padding: 1px 7px;
+  margin: 0 2px;
+  border: 1px solid var(--line);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  background: var(--panel2);
+  font-family: inherit;
+  font-size: 12px;
+  color: #fff;
+}
+
+/* ===== 设置页 ===== */
+.settings-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background:
+    radial-gradient(circle at 50% 30%, rgba(47, 143, 255, 0.10), transparent 55%),
+    var(--bg);
+}
+
+.settings-panel {
+  width: 440px;
+  max-width: 100%;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 26px 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.settings-panel h2 { text-align: center; letter-spacing: 3px; font-size: 22px; }
+
+.field { display: flex; flex-direction: column; gap: 8px; }
+.field label { color: var(--dim); font-size: 13px; letter-spacing: 1px; }
+.field .row { display: flex; align-items: center; gap: 12px; }
+.field input[type=range] { flex: 1; accent-color: var(--accent); }
+.field .val { min-width: 48px; text-align: right; color: #fff; font-variant-numeric: tabular-nums; }
+.field select { padding: 9px 10px; background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 8px; }
+
+.switch { flex-direction: row; align-items: center; justify-content: space-between; }
+.switch input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--accent); cursor: pointer; }
+
+.settings-actions { display: flex; gap: 12px; }
+.settings-actions .btn { flex: 1; }
+
+/* ===== 游戏 HUD ===== */
+#hud { position: fixed; inset: 0; pointer-events: none; z-index: 10; }
+.hidden { display: none !important; }
+
+.hud-top { display: flex; justify-content: space-between; align-items: flex-start; padding: 18px 22px; }
+.hud-left, .hud-right { display: flex; flex-direction: column; gap: 8px; }
+.hud-right { align-items: flex-end; }
+.hud-center { display: flex; flex-direction: column; align-items: center; }
+.hud-label { color: var(--dim); font-size: 12px; letter-spacing: 2px; }
+.hud-value { color: #fff; font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+.health-bar { width: 200px; height: 14px; background: rgba(255, 255, 255, 0.10); border-radius: 7px; overflow: hidden; }
+#health-fill { height: 100%; width: 100%; background: linear-gradient(90deg, #2fd36b, #4be07a); border-radius: 7px; transition: width .15s; }
+#health-text { font-size: 12px; color: #fff; text-align: right; }
+
+#wave-text { font-size: 20px; letter-spacing: 3px; color: var(--accent2); font-weight: 700; }
+
+.hud-bottom {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  display: flex; justify-content: space-between; align-items: flex-end;
+  padding: 18px 22px;
+}
+.weapon-info { text-align: right; }
+#weapon-name { font-size: 20px; font-weight: 700; letter-spacing: 2px; }
+#ammo-text { font-size: 34px; font-weight: 800; font-variant-numeric: tabular-nums; color: #fff; }
+#hud-hint { color: var(--dim); font-size: 12px; letter-spacing: 1px; }
+
+/* 准星 */
+#crosshair { position: fixed; left: 50%; top: 50%; width: 20px; height: 20px; transform: translate(-50%, -50%); pointer-events: none; z-index: 20; }
+#crosshair::before, #crosshair::after { content: ''; position: absolute; background: var(--cc, #00ff88); border-radius: 1px; box-shadow: 0 0 4px rgba(0, 0, 0, 0.6); }
+#crosshair::before { left: 50%; top: 0; width: 2px; height: 100%; transform: translateX(-50%); }
+#crosshair::after { top: 50%; left: 0; width: 100%; height: 2px; transform: translateY(-50%); }
+
+/* 命中提示 */
+#hitmarker { position: fixed; left: 50%; top: 50%; width: 16px; height: 16px; margin: -8px 0 0 -8px; pointer-events: none; z-index: 21; opacity: 0; }
+#hitmarker::before, #hitmarker::after { content: ''; position: absolute; left: 50%; top: 50%; width: 2px; height: 16px; background: #fff; border-radius: 1px; }
+#hitmarker::before { transform: translate(-50%, -50%) rotate(45deg); }
+#hitmarker::after { transform: translate(-50%, -50%) rotate(-45deg); }
+#hitmarker.show { opacity: 1; }
+#hitmarker.head.show::before, #hitmarker.head.show::after { background: #ff4b3a; }
+#hitmarker.head.show { transform: scale(1.3); }
+
+/* 受伤红光 */
+#damage-flash {
+  position: fixed; inset: 0; pointer-events: none; z-index: 15; opacity: 0;
+  background: radial-gradient(ellipse at center, rgba(255, 0, 0, 0) 45%, rgba(255, 30, 30, 0.55) 100%);
+  transition: opacity .18s;
+}
+#damage-flash.show { opacity: 1; }
+
+/* 遮罩 */
+#overlay {
+  position: fixed; inset: 0; z-index: 30;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+  background: rgba(6, 8, 12, 0.78);
+}
+#overlay-title { font-size: 40px; font-weight: 900; letter-spacing: 4px; }
+#overlay-sub { color: var(--dim); letter-spacing: 2px; font-size: 14px; }
+
+/* 结束面板 */
+#game-over { position: fixed; inset: 0; z-index: 40; display: flex; align-items: center; justify-content: center; background: rgba(6, 8, 12, 0.8); }
+.go-panel {
+  background: var(--panel); border: 1px solid var(--line); border-radius: 16px;
+  padding: 36px 46px; text-align: center; display: flex; flex-direction: column; gap: 14px; min-width: 320px;
+}
+.go-panel h2 { font-size: 30px; letter-spacing: 4px; color: var(--accent); }
+.go-panel .stat { font-size: 16px; color: var(--dim); letter-spacing: 1px; }
+.go-panel .stat b { color: #fff; font-size: 22px; margin-left: 6px; }
+.go-panel .btn { margin-top: 4px; }
+
+/* ===== 首页地图选择 ===== */
+.map-select { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+
+.map-card {
+  width: 156px;
+  padding: 12px 10px;
+  text-align: center;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  cursor: pointer;
+  transition: transform .15s, border-color .15s, box-shadow .15s;
+  user-select: none;
+}
+.map-card b { display: block; font-size: 16px; letter-spacing: 2px; }
+.map-card span { display: block; margin-top: 5px; font-size: 11px; color: var(--dim); line-height: 1.5; }
+.map-card:hover { transform: translateY(-2px); border-color: var(--accent2); }
+.map-card.active { border-color: var(--accent); box-shadow: 0 0 18px rgba(255, 90, 42, 0.30); }
+.map-card.active b { color: var(--accent); }
+
+/* ===== HUD 文字描边（雪地等亮色地图下也能看清）===== */
+.hud-value, #weapon-name, #ammo-text, .hud-label, #hud-hint, #wave-text, #map-name, .slot, #buy-timer {
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85), 0 0 8px rgba(0, 0, 0, 0.45);
+}
+
+/* ===== 资金 / 武器槽 / 购买倒计时 ===== */
+.hud-value.money { color: #ffd447; }
+#map-name { color: var(--dim); font-size: 12px; letter-spacing: 2px; margin-top: 6px; }
+#buy-timer { color: #6cf58a; font-size: 14px; letter-spacing: 2px; margin-top: 4px; }
+
+#weapon-slots {
+  position: absolute; right: 22px; bottom: 96px;
+  display: flex; flex-direction: column; gap: 6px; align-items: flex-end;
+}
+.slot {
+  display: flex; align-items: center; gap: 8px;
+  padding: 4px 10px; min-width: 122px;
+  border: 1px solid var(--line); border-radius: 8px;
+  background: rgba(12, 16, 22, 0.50);
+  font-size: 13px; letter-spacing: 1px;
+}
+.slot b {
+  display: inline-flex; width: 20px; height: 20px;
+  align-items: center; justify-content: center;
+  border-radius: 5px; background: rgba(255, 255, 255, 0.14); font-size: 12px;
+}
+.slot.active { border-color: var(--accent); box-shadow: 0 0 14px rgba(255, 90, 42, 0.35); }
+.slot.locked { opacity: 0.35; }
+
+/* ===== 购买菜单 ===== */
+#buy-menu {
+  position: fixed; inset: 0; z-index: 36;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(6, 8, 12, 0.72);
+}
+.buy-panel {
+  width: 480px; max-width: calc(100% - 40px);
+  background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
+  padding: 20px 24px; display: flex; flex-direction: column; gap: 10px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+.buy-panel h3 { font-size: 20px; letter-spacing: 4px; text-align: center; }
+.buy-balance { text-align: center; color: var(--dim); font-size: 13px; letter-spacing: 1px; }
+.buy-balance b { color: #ffd447; font-size: 18px; margin: 0 2px; }
+.buy-list { display: flex; flex-direction: column; gap: 6px; }
+.buy-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px;
+  background: var(--panel2); font-size: 14px;
+}
+.buy-item .bi-key {
+  display: inline-flex; width: 22px; height: 22px;
+  align-items: center; justify-content: center;
+  border-radius: 5px; background: rgba(255, 255, 255, 0.12); font-size: 12px;
+}
+.buy-item .bi-name { flex: 1; }
+.buy-item .bi-price { color: #ffd447; font-variant-numeric: tabular-nums; }
+.buy-item.can { border-color: rgba(61, 220, 95, 0.70); }
+.buy-item.can .bi-price { color: #6cf58a; }
+.buy-item.owned { opacity: 0.55; }
+.buy-item.owned .bi-price { color: var(--dim); }
+.buy-item.locked { opacity: 0.45; }
+.buy-item.locked .bi-price { color: #ff6a55; }
+.buy-item.ammo { margin-top: 6px; }
+
+/* ===== 护甲条（与生命条同风格，青色）===== */
+.armor-label { margin-top: 6px; }
+.armor-bar {
+  width: 200px; height: 10px; border-radius: 6px;
+  background: rgba(255, 255, 255, 0.12); overflow: hidden;
+}
+#armor-fill {
+  width: 0%; height: 100%; border-radius: 6px;
+  background: linear-gradient(90deg,#3aa0ff,#5ec8ff);
+  transition: width 0.2s ease;
+}
+#armor-text { color: var(--dim); font-size: 12px; letter-spacing: 1px; }
+#buy-status { text-align: center; font-size: 13px; color: var(--accent2); letter-spacing: 1px; }
+.buy-tip { text-align: center; font-size: 12px; color: var(--dim); }
+
+/* ===== 提示条 / 瞄准镜 ===== */
+#toast {
+  position: fixed; left: 50%; top: 22%; transform: translateX(-50%);
+  z-index: 38; padding: 10px 20px; border-radius: 10px;
+  background: rgba(12, 16, 22, 0.86); border: 1px solid var(--line);
+  color: #fff; font-size: 15px; letter-spacing: 1px; pointer-events: none;
+}
+#scope {
+  position: fixed; inset: 0; z-index: 19; pointer-events: none;
+  background: radial-gradient(circle at 50% 50%, rgba(0, 0, 0, 0) 0 23vh, rgba(0, 0, 0, 0.85) 30vh, #04060a 34vh);
+}
+#scope::before { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: rgba(0, 0, 0, 0.9); }
+#scope::after { content: ''; position: absolute; top: 0; bottom: 0; left: 50%; width: 1px; background: rgba(0, 0, 0, 0.9); }
