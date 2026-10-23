@@ -98,6 +98,11 @@
     }
   };
 
+  // 合并战术禁区新图（maps-extra.js）
+  if (window.WaveShotMapsExtra) {
+    Object.assign(MAP_DEFS, window.WaveShotMapsExtra);
+  }
+
   // 优先读 URL 参数（?map=dust），防止 file:// 下 localStorage 失效导致换图不生效
   const urlMap = (location.search.match(/[?&]map=([A-Za-z0-9_-]+)/) || [])[1];
   const mapId = (urlMap && MAP_DEFS[urlMap]) ? urlMap
@@ -139,6 +144,14 @@
   const scopeEl = $('scope');
   const mapNameEl = $('map-name');
   mapNameEl.textContent = '地图：' + MAP.name + ' · ' + MAP.desc;
+  const pauseMenu = $('pause-menu');
+  const pauseWaveEl = $('pause-wave');
+  const pauseScoreEl = $('pause-score');
+  const pauseSensVal = $('pause-sens-val');
+  const pauseSens = $('pause-sensitivity');
+  const resumeBtn = $('resume-btn');
+  const pauseExitBtn = $('pause-exit-btn');
+  const pauseTip = $('pause-tip');
 
   // ===== 渲染器 / 场景 / 相机 =====
   const scene = new THREE.Scene();
@@ -160,7 +173,8 @@
   scene.add(new THREE.AmbientLight(MAP.ambient, 0.55));
   scene.add(new THREE.HemisphereLight(MAP.sky, MAP.bounce, 0.45));
   const sun = new THREE.DirectionalLight(MAP.sun, MAP.sunPower);
-  sun.position.set(20, 32, 14);
+  const sunPos = MAP.sunPos || { x: 20, y: 32, z: 14 };
+  sun.position.set(sunPos.x, sunPos.y, sunPos.z);
   sun.castShadow = settings.quality !== 'low';
   sun.shadow.mapSize.set(2048, 2048);
   sun.shadow.camera.left = -60; sun.shadow.camera.right = 60;
@@ -183,6 +197,7 @@
   const grid = new THREE.GridHelper(140, 48, MAP.gridA, MAP.gridB);
   grid.position.y = 0.02;
   scene.add(grid);
+  if (MAP.showGrid === false) grid.visible = false;
 
   const obstacles = [];
   const matWall = new THREE.MeshStandardMaterial({ color: MAP.wall, roughness: 0.85 });
@@ -190,8 +205,27 @@
   const matPillar = new THREE.MeshStandardMaterial({ color: MAP.pillar, roughness: 0.7, metalness: 0.2 });
   const MATS = { wall: matWall, crate: matCrate, pillar: matPillar };
 
+  function scaleBoxUV(geo, w, h, d, tile) {
+    if (!tile || !geo.attributes || !geo.attributes.uv) return;
+    const uv = geo.attributes.uv;
+    // BoxGeometry 面顺序 px,nx,py,ny,pz,nz，每面 4 个顶点
+    const dims = [[d, h], [d, h], [w, d], [w, d], [w, h], [w, h]];
+    for (let f = 0; f < 6; f++) {
+      const su = dims[f][0] / tile;
+      const sv = dims[f][1] / tile;
+      for (let v = 0; v < 4; v++) {
+        const i = f * 4 + v;
+        uv.setXY(i, uv.getX(i) * su, uv.getY(i) * sv);
+      }
+    }
+    uv.needsUpdate = true;
+  }
+
   function addBox(x, z, w, h, d, kind) {
-    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), MATS[kind] || matWall);
+    const geo = new THREE.BoxGeometry(w, h, d);
+    const tile = MAP.uvTiles ? MAP.uvTiles[kind] : 0;
+    if (tile) scaleBoxUV(geo, w, h, d, tile);
+    const m = new THREE.Mesh(geo, MATS[kind] || matWall);
     m.position.set(x, h / 2, z);
     m.castShadow = true;
     m.receiveShadow = true;
@@ -201,8 +235,36 @@
     return m;
   }
 
+  // ===== 地图构建 API（新图用；旧图 build(box, b) 忽略第三参）=====
+  const mapApi = {
+    THREE: THREE, scene: scene, ground: ground, grid: grid, sun: sun,
+    box: addBox,
+    scaleUV: scaleBoxUV,
+    tileFor: function (kind) { return (MAP.uvTiles && MAP.uvTiles[kind]) || 0; },
+    deco: function (mesh, shadows) {
+      if (shadows !== false) { mesh.castShadow = true; mesh.receiveShadow = true; }
+      scene.add(mesh);
+      return mesh;
+    },
+    solid: function (mesh) {
+      mesh.castShadow = true; mesh.receiveShadow = true;
+      scene.add(mesh);
+      sceneSolids.push(mesh);
+      return mesh;
+    },
+    obstacle: function (o) { obstacles.push(o); },
+    addMaterial: function (k, m) { MATS[k] = m; },
+    mat: function (k) { return MATS[k] || matWall; },
+    light: function (l) { scene.add(l); }
+  };
+
   // ===== 按当前地图生成掩体 =====
-  MAP.build(addBox, MAP.bound);
+  MAP.build(addBox, MAP.bound, mapApi);
+
+  // ===== 寻路网格（仅战术图启用；旧图保持直线追击）=====
+  const navGrid = (MAP.nav && window.WaveShotNav)
+    ? window.WaveShotNav.create({ bound: MAP.bound, obstacles: obstacles, radius: 0.55, cell: 1 })
+    : null;
 
   // ===== 购买区（每波准备时间内站在圈内才能买枪）=====
   const buyRing = new THREE.Mesh(
@@ -386,11 +448,11 @@
   const enemies = [];
   const enemyParts = [];
 
-  function makeHealthBar() {
+  function makeHealthBar(depthTest) {
     const canvas = document.createElement('canvas');
     canvas.width = 64; canvas.height = 8;
     const tex = new THREE.CanvasTexture(canvas);
-    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true }));
+    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: depthTest === true, transparent: true }));
     sprite.scale.set(0.9, 0.11, 1);
     function set(frac) {
       const c = canvas.getContext('2d');
@@ -409,6 +471,9 @@
   const enemyLimbMat = new THREE.MeshStandardMaterial({ color: 0x3a3f47, roughness: 0.7 });
   const enemyVisorMat = new THREE.MeshStandardMaterial({ color: 0xff3b30, emissive: 0x660000, emissiveIntensity: 0.8 });
 
+  // 敌人风格：像素方块（旧图）/ 写实僵尸（战术图）
+  const ENEMY_STYLE = MAP.enemyStyle || 'pixel';
+
   function Enemy(x, z, hp, speed) {
     this.x = x; this.z = z;
     this.hp = hp; this.maxHp = hp;
@@ -422,6 +487,19 @@
     this.walkT = Math.random() * 6.28;
     this.deathT = 0;
     this.deadTime = 1.0;
+    this.navTimer = 0;
+    this.navPath = null;
+    this.navIndex = 0;
+
+    // 写实僵尸：整体交给 enemies-extra.js 拼装（它自己负责 enemies.push）
+    if (ENEMY_STYLE === 'zombie' && window.WaveShotEnemies) {
+      window.WaveShotEnemies.create(this, {
+        THREE: THREE, scene: scene, enemies: enemies, enemyParts: enemyParts,
+        makeHealthBar: makeHealthBar,
+        palette: MAP.zombiePalette
+      });
+      return;
+    }
 
     this.group = new THREE.Group();
     const body = new THREE.Mesh(new THREE.BoxGeometry(0.7, 1.1, 0.5), enemyBodyMat);
@@ -468,9 +546,36 @@
 
     if (this.attackCd > 0) this.attackCd -= dt;
 
-    if (dist > this.attackRange) {
-      this.x += (dx / dist) * this.speed * dt;
-      this.z += (dz / dist) * this.speed * dt;
+    // 有寻路网格时必须看得见玩家才能近战（不隔墙抓人）
+    const canAttack = dist <= this.attackRange &&
+      (!navGrid || navGrid.lineClear(this.x, this.z, player.x, player.z));
+
+    if (!canAttack) {
+      let tx = player.x, tz = player.z;
+      if (navGrid) {
+        this.navTimer -= dt;
+        if (!this.navPath || this.navTimer <= 0) {
+          this.navPath = navGrid.findPath(this.x, this.z, player.x, player.z);
+          this.navIndex = 0;
+          this.navTimer = 0.6 + Math.random() * 0.35;
+        }
+        if (this.navPath && this.navPath.length) {
+          // 距当前路点 < 0.55m 切下一个；路径耗尽则直接朝玩家
+          while (this.navIndex < this.navPath.length &&
+                 Math.hypot(this.navPath[this.navIndex].x - this.x,
+                            this.navPath[this.navIndex].z - this.z) < 0.55) {
+            this.navIndex++;
+          }
+          if (this.navIndex < this.navPath.length) {
+            tx = this.navPath[this.navIndex].x;
+            tz = this.navPath[this.navIndex].z;
+          }
+        }
+      }
+      const mdx = tx - this.x, mdz = tz - this.z;
+      const mdist = Math.sqrt(mdx * mdx + mdz * mdz) || 0.0001;
+      this.x += (mdx / mdist) * this.speed * dt;
+      this.z += (mdz / mdist) * this.speed * dt;
       resolveCollisions(this);
       this.walkT += dt * (this.speed + 1);
     } else if (this.attackCd <= 0) {
@@ -482,8 +587,18 @@
     const bob = Math.abs(Math.sin(this.walkT * 2)) * 0.08;
     this.group.position.set(this.x, bob, this.z);
     this.group.lookAt(player.x, bob, player.z);
-    const s = 1 + Math.max(0, this.flash) * 1.2;
+    // 受击闪烁叠在 baseScale 上（旧敌人无 baseScale 即 1）
+    const s = (this.baseScale || 1) * (1 + Math.max(0, this.flash) * 1.2);
     this.group.scale.set(s, s, s);
+
+    // 写实僵尸关节摆动
+    if (this.anim) {
+      const swing = Math.sin(this.walkT * 1.7);
+      this.anim.armL.rotation.x = swing * 0.55;
+      this.anim.armR.rotation.x = -swing * 0.55;
+      this.anim.legL.rotation.x = -swing * 0.5;
+      this.anim.legR.rotation.x = swing * 0.5;
+    }
   };
 
   Enemy.prototype.takeDamage = function (dmg) {
@@ -617,22 +732,41 @@
     updateHUD();
   }
 
+  function hitEnemyPart(hit, dmg, dir) {
+    const enemy = hit.object.userData.enemy;
+    // 部位伤害倍率：爆头 x4 / 躯干 x1 / 四肢 x0.75
+    const part = hit.object.userData.hit || 'body';
+    const mult = HIT_MULT[part] || 1;
+    const dealt = Math.round(dmg * mult);
+    showHitmarker(part === 'head');
+    const nrm = hit.face ? hit.face.normal.clone().transformDirection(hit.object.matrixWorld) : dir.clone().negate();
+    spawnImpact(hit.point, nrm);
+    playSound('hit');
+    if (enemy) enemy.takeDamage(dealt);
+  }
+
   function shootRay(origin, dir, dmg) {
     raycaster.set(origin, dir);
     raycaster.far = 160;
     const hits = raycaster.intersectObjects(enemyParts, false);
+
+    // 新图：子弹会被墙/实体掩体挡住（旧图保持原穿墙行为，不动）
+    if (MAP.blockBullets) {
+      const sceneHits = raycaster.intersectObjects(sceneSolids, false);
+      if (hits.length > 0 && (!sceneHits.length || hits[0].distance < sceneHits[0].distance)) {
+        hitEnemyPart(hits[0], dmg, dir);
+        return;
+      }
+      if (sceneHits.length > 0) {
+        const sHit = sceneHits[0];
+        const nrm = sHit.face ? sHit.face.normal.clone().transformDirection(sHit.object.matrixWorld) : dir.clone().negate();
+        spawnImpact(sHit.point, nrm);
+      }
+      return;
+    }
+
     if (hits.length > 0) {
-      const hit = hits[0];
-      const enemy = hit.object.userData.enemy;
-      // 部位伤害倍率：爆头 x4 / 躯干 x1 / 四肢 x0.75
-      const part = hit.object.userData.hit || 'body';
-      const mult = HIT_MULT[part] || 1;
-      const dealt = Math.round(dmg * mult);
-      showHitmarker(part === 'head');
-      const nrm = hit.face ? hit.face.normal.clone().transformDirection(hit.object.matrixWorld) : dir.clone().negate();
-      spawnImpact(hit.point, nrm);
-      playSound('hit');
-      if (enemy) enemy.takeDamage(dealt);
+      hitEnemyPart(hits[0], dmg, dir);
       return;
     }
     const sceneHits = raycaster.intersectObjects(sceneSolids, false);
@@ -752,7 +886,7 @@
   }
 
   function openBuy() {
-    if (buyOpen || state === 'over') return;
+    if (buyOpen || state !== 'playing') return;
     buyOpen = true;
     buyMenu.classList.remove('hidden');
     // 打开菜单时主动释放鼠标锁：菜单期间不暂停，Esc 只关菜单不触发暂停
@@ -769,14 +903,16 @@
       try {
         const p = renderer.domElement.requestPointerLock();
         if (p && p.catch) p.catch(function () {
-          if (state === 'playing' && !document.pointerLockElement) toast('点击画面继续操控');
+          if (state === 'playing' && !document.pointerLockElement) showPause();
         });
-      } catch (e) { /* 忽略 */ }
+      } catch (e) {
+        if (state === 'playing' && !document.pointerLockElement) showPause();
+      }
     }
   }
 
   function toggleBuy() {
-    if (state === 'over') return;
+    if (state !== 'playing') return;
     if (buyOpen) closeBuy(true);
     else openBuy();
   }
@@ -1037,6 +1173,7 @@
 
   // ===== 游戏状态 =====
   let state = 'menu'; // menu | playing | paused | over
+  let pauseStartT = 0;
   let wave = 0;
   let waveLeft = 0;
   let waveDelay = 0;
@@ -1050,6 +1187,27 @@
   }
   function hideOverlay() {
     overlay.classList.add('hidden');
+  }
+
+  function showPause() {
+    state = 'paused';
+    pauseStartT = performance.now();
+    // 清空按键/开火状态，防止恢复后卡键
+    for (const k in keys) keys[k] = false;
+    mouseDown = false;
+    closeBuy(false);
+    setAim(false);
+    if (pauseWaveEl) pauseWaveEl.textContent = Math.max(1, wave);
+    if (pauseScoreEl) pauseScoreEl.textContent = score;
+    if (pauseSens) pauseSens.value = settings.sensitivity;
+    if (pauseSensVal) pauseSensVal.textContent = Number(settings.sensitivity).toFixed(4);
+    if (pauseTip) pauseTip.textContent = '点击“继续游戏”或按 Esc 回到战斗 · 退出将返回主页';
+    hideOverlay();
+    if (pauseMenu) pauseMenu.classList.remove('hidden');
+  }
+
+  function hidePause() {
+    if (pauseMenu) pauseMenu.classList.add('hidden');
   }
 
   function startWave(n) {
@@ -1079,6 +1237,26 @@
   }
 
   function spawnEnemy(hp, speed) {
+    // 战术图：从地图远端/三路预设刷怪点进场
+    if (MAP.spawnPoints && MAP.spawnPoints.length) {
+      const pts = MAP.spawnPoints;
+      let p = null;
+      for (let i = 0; i < 40; i++) {
+        const cand = pts[Math.floor(Math.random() * pts.length)];
+        if (Math.hypot(cand.x - player.x, cand.z - player.z) > 12 &&
+            (!navGrid || !navGrid.isBlockedPoint(cand.x, cand.z))) {
+          p = cand;
+          break;
+        }
+      }
+      if (!p) {
+        // 兜底：取最后一个候选并向中心收一点，避免生成在喷泉/墙里
+        const last = pts[pts.length - 1];
+        p = { x: last.x * 0.85, z: last.z * 0.85 };
+      }
+      new Enemy(p.x, p.z, hp, speed);
+      return;
+    }
     let x = 0, z = 0, tries = 0;
     do {
       const ang = Math.random() * Math.PI * 2;
@@ -1094,6 +1272,7 @@
     state = 'over';
     closeBuy(false);
     setAim(false);
+    hidePause();
     if (document.pointerLockElement) document.exitPointerLock();
     finalScore.textContent = score;
     finalKills.textContent = killCount;
@@ -1113,7 +1292,26 @@
     } catch (e) { /* 忽略 */ }
   }
 
+  // 暂停中恢复鼠标锁：Chrome 按 Esc 后有短暂冷却，失败要提示重试而不是崩
+  function tryResume() {
+    if (state !== 'paused') return;
+    function failed() {
+      if (state === 'paused' && pauseTip) {
+        pauseTip.textContent = '浏览器暂时拒绝锁定鼠标，请稍候再点一次';
+      }
+    }
+    try {
+      const p = renderer.domElement.requestPointerLock();
+      if (p && p.catch) p.catch(failed);
+    } catch (e) { failed(); }
+  }
+
   window.addEventListener('keydown', function (e) {
+    // 暂停时屏蔽 B/1~4/R 等全部游戏输入；再次按 Esc 尝试恢复鼠标锁
+    if (state === 'paused') {
+      if (e.code === 'Escape' && performance.now() - pauseStartT > 350) tryResume();
+      return;
+    }
     keys[e.code] = true;
     if (e.code === 'KeyR') startReload();
     if (e.code === 'KeyB') toggleBuy();
@@ -1150,6 +1348,23 @@
   if (buyArmorBtn) buyArmorBtn.addEventListener('click', buyArmor);
   if (buyMedBtn) buyMedBtn.addEventListener('click', buyMedkit);
 
+  // ===== 暂停面板：继续 / 灵敏度 / 退出 =====
+  if (resumeBtn) resumeBtn.addEventListener('click', tryResume);
+  if (pauseExitBtn) pauseExitBtn.addEventListener('click', function () {
+    GameSettings.saveSettings(settings);
+    location.href = 'index.html';
+  });
+  if (pauseSens) {
+    pauseSens.value = settings.sensitivity;
+    pauseSens.addEventListener('input', function () {
+      settings.sensitivity = parseFloat(pauseSens.value);
+      if (pauseSensVal) pauseSensVal.textContent = Number(settings.sensitivity).toFixed(4);
+    });
+    pauseSens.addEventListener('change', function () {
+      GameSettings.saveSettings(settings);
+    });
+  }
+
   document.addEventListener('mousedown', function (e) {
     if (e.button === 0) {
       mouseDown = true;
@@ -1165,7 +1380,9 @@
 
   function onStartClick() {
     if (buyOpen) return;
-    if (state === 'menu' || state === 'paused' || (state === 'playing' && !pointerLocked)) requestLock();
+    // 暂停面板期间点击画面不恢复鼠标锁，避免点面板空白误继续
+    if (state === 'paused') return;
+    if (state === 'menu' || (state === 'playing' && !pointerLocked)) requestLock();
   }
   renderer.domElement.addEventListener('click', onStartClick);
   overlay.addEventListener('click', onStartClick);
@@ -1175,6 +1392,7 @@
     if (pointerLocked) {
       ac();
       hideOverlay();
+      hidePause();
       if (state === 'menu') {
         state = 'playing';
         if (wave === 0) startWave(1);
@@ -1183,10 +1401,7 @@
       }
     } else if (state === 'playing' && !buyOpen) {
       // 菜单打开时的主动释放鼠标锁不算暂停
-      state = 'paused';
-      closeBuy(false);
-      setAim(false);
-      showOverlay('已暂停', '点击画面继续游戏');
+      showPause();
     }
   });
 

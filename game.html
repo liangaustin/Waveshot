@@ -70,6 +70,23 @@
   <div id="scope" class="hidden"></div>
   <div id="toast" class="hidden"></div>
 
+  <div id="pause-menu" class="hidden">
+    <div class="pause-panel">
+      <h2>已暂停</h2>
+      <div class="pause-stats">第 <b id="pause-wave">1</b> 波 · 得分 <b id="pause-score">0</b></div>
+      <div class="pause-field">
+        <label>鼠标灵敏度 <b id="pause-sens-val">0.0022</b></label>
+        <input type="range" id="pause-sensitivity"
+               min="0.0005" max="0.006" step="0.0001" value="0.0022">
+      </div>
+      <div class="pause-actions">
+        <button class="btn primary" id="resume-btn">继续游戏</button>
+        <button class="btn" id="pause-exit-btn">退出游戏</button>
+      </div>
+      <div class="pause-tip" id="pause-tip">点击“继续游戏”或按 Esc 回到战斗 · 退出将返回主页</div>
+    </div>
+  </div>
+
   <div id="buy-menu" class="hidden">
     <div class="buy-panel">
       <h3>购买武器</h3>
@@ -89,6 +106,10 @@
   </div>
 
   <script src="lib/three.min.js"></script>
+  <script src="js/textures.js"></script>
+  <script src="js/nav.js"></script>
+  <script src="js/maps-extra.js"></script>
+  <script src="js/enemies-extra.js"></script>
   <script src="js/shared.js"></script>
   <script src="js/game.js"></script>
 </body>

@@ -30,11 +30,20 @@
     }
   }
 
+  /* 地图分类（主页标签页） */
+  const MAP_CATEGORIES = [
+    { id: 'pixel', name: '像素战场', desc: '原版方块地图 · 像素敌人' },
+    { id: 'tactical', name: '战术禁区', desc: '新地图 · 写实僵尸 · 寻路 AI' }
+  ];
+
   /* 地图列表（id 需与 js/game.js 中的 MAP_DEFS 对应） */
   const MAP_LIST = [
-    { id: 'warehouse', name: '仓库', desc: '工业仓库 · 掩体密集' },
-    { id: 'dust', name: '沙漠', desc: '开阔沙地 · 四角岩台' },
-    { id: 'snow', name: '雪原', desc: '雪地旷野 · 冰柱环绕' }
+    { id: 'warehouse', name: '仓库', desc: '工业仓库 · 掩体密集', category: 'pixel' },
+    { id: 'dust', name: '沙漠', desc: '开阔沙地 · 四角岩台', category: 'pixel' },
+    { id: 'snow', name: '雪原', desc: '雪地旷野 · 冰柱环绕', category: 'pixel' },
+    { id: 'redsand', name: '赤沙回廊', desc: '砂岩旧城 · 三路交火', category: 'tactical', badge: 'NEW' },
+    { id: 'jadecourt', name: '青庭圣所', desc: '青石庭院 · 三路围攻', category: 'tactical', badge: 'NEW' },
+    { id: 'whiteharbor', name: '白港中庭', desc: '白灰市集 · 中庭争夺', category: 'tactical', badge: 'NEW' }
   ];
 
   const MAP_KEY = 'fps3d_map';
@@ -57,6 +66,7 @@
 
   global.GameMap = {
     LIST: MAP_LIST,
+    CATEGORIES: MAP_CATEGORIES,
     load: loadMap,
     save: saveMap
   };
